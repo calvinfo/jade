@@ -1,4 +1,25 @@
 
+0.27.6 / 2012-10-05 
+==================
+
+  * Included templates can not override blocks of their parent. Closes #699
+
+0.27.5 / 2012-09-24 
+==================
+
+  * fix attr interpolation escaping. Closes #771
+
+0.27.4 / 2012-09-18 
+==================
+
+  * fix include yields. Closes #770
+
+0.27.3 / 2012-09-18 
+==================
+
+  * fix escaping of interpolation. Closes #769
+  * loosen "mkdirp" version restriction [TooTallNate]
+
 0.27.2 / 2012-08-07 
 ==================
 

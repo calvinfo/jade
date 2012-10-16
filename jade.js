@@ -67,7 +67,7 @@ var Parser = require('./parser')
  * Library version.
  */
 
-exports.version = '0.27.2';
+exports.version = '0.27.6';
 
 /**
  * Expose self closing tags.
@@ -759,8 +759,9 @@ Compiler.prototype = {
    */
 
   visitText: function(text){
-    text = utils.text(text.val.replace(/\\/g, '\\\\'));
+    text = utils.text(text.val.replace(/\\/g, '_SLASH_'));
     if (this.escape) text = escape(text);
+    text = text.replace(/_SLASH_/g, '\\\\');
     this.buffer(text);
   },
 
@@ -1915,7 +1916,8 @@ require.register("parser.js", function(module, exports, require){
  */
 
 var Lexer = require('./lexer')
-  , nodes = require('./nodes');
+  , nodes = require('./nodes')
+  , utils = require('./utils');
 
 /**
  * Initialize `Parser` with the given input `str` and `filename`.
@@ -2390,7 +2392,7 @@ Parser.prototype = {
     var path = join(dir, path)
       , str = fs.readFileSync(path, 'utf8')
      , parser = new Parser(str, path, this.options);
-    parser.blocks = this.blocks;
+    parser.blocks = utils.merge({}, this.blocks);
     parser.mixins = this.mixins;
 
     this.context(parser);
@@ -2836,12 +2838,16 @@ require.register("utils.js", function(module, exports, require){
  */
 
 var interpolate = exports.interpolate = function(str){
-  return str.replace(/(\\)?([#!]){(.*?)}/g, function(str, escape, flag, code){
+  return str.replace(/(_SLASH_)?([#!]){(.*?)}/g, function(str, escape, flag, code){
+    code = code
+      .replace(/\\'/g, "'")
+      .replace(/_SLASH_/g, '\\');
+
     return escape
-      ? str
+      ? str.slice(7)
       : "' + "
         + ('!' == flag ? '' : 'escape')
-        + "((interp = " + code.replace(/\\'/g, "'")
+        + "((interp = " + code
         + ") == null ? '' : interp) + '";
   });
 };
@@ -2869,6 +2875,22 @@ var escape = exports.escape = function(str) {
 exports.text = function(str){
   return interpolate(escape(str));
 };
+
+/**
+ * Merge `b` into `a`.
+ *
+ * @param {Object} a
+ * @param {Object} b
+ * @return {Object}
+ * @api public
+ */
+
+exports.merge = function(a, b) {
+  for (var key in b) a[key] = b[key];
+  return a;
+};
+
+
 }); // module: utils.js
 
 require.register("lexer.js", function(module, exports, require){
@@ -3378,8 +3400,10 @@ Lexer.prototype = {
       }
 
       function interpolate(attr) {
-        return attr.replace(/#\{([^}]+)\}/g, function(_, expr){
-          return quote + " + (" + expr + ") + " + quote;
+        return attr.replace(/(\\)?#\{([^}]+)\}/g, function(_, escape, expr){
+          return escape
+             ? _
+             : quote + " + (" + expr + ") + " + quote;
         });
       }
 
@@ -4156,6 +4180,7 @@ Block.prototype.includeBlock = function(){
     else if (node.textOnly) continue;
     else if (node.includeBlock) ret = node.includeBlock();
     else if (node.block && !node.block.isEmpty()) ret = node.block.includeBlock();
+    if (ret.yield) return ret;
   }
 
   return ret;
